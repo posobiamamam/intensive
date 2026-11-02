@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover">
 <meta name="format-detection" content="telephone=no">
 <title>Пособия мамам</title>
-<script src="https://st.max.ru/js/max-web-app.js"></script>
+<script src="telegram-web-app.js"></script>
 <script>
 /* =========================================================
    МЕНЯЕТЕ ТОЛЬКО ЭТОТ БЛОК
@@ -28,7 +28,7 @@ window.KK_DATA = {
     title: "Единое пособие: от А до Я",
     text: "Разберём всё, что влияет на назначение пособия: доходы, имущество, счета и алименты. Вы поймёте, как подать заявление без ошибок и что делать, если пришёл отказ.",
     buttonText: "Участвовать в интенсиве",
-    buttonUrl: "https://max.ru/channel_posobia_mamam/AaGQ3MjuJow"
+    buttonUrl: "https://t.me/posobia_mamamm/1598"
   },
   cardsTitle: "Смотрите по порядку",
   cards: [
@@ -36,19 +36,19 @@ window.KK_DATA = {
       tag: "Бесплатный эфир",
       title: "Движение по счетам",
       caption: "Как учитываются поступления на счета при назначении единого пособия",
-      url: "https://max.ru/channel_posobia_mamam/AaGBr93zFdE"
+      url: "https://t.me/posobia_mamamm/1589"
     },
     {
       tag: "Бесплатный эфир",
       title: "Условные алименты",
       caption: "Что это такое и как они влияют на единое пособие",
-      url: "https://max.ru/channel_posobia_mamam/AaGNtduGFJg"
+      url: "https://t.me/posobia_mamamm/1596"
     },
     {
       tag: "Интенсив",
       title: "Единое пособие: от А до Я",
       caption: "Полный разбор пособия — от права на выплату до подачи заявления",
-      url: "https://max.ru/channel_posobia_mamam/AaGQ3MjuJow",
+      url: "https://t.me/posobia_mamamm/1598",
       highlight: true
     }
   ],
@@ -283,39 +283,44 @@ window.KK_DATA = {
   if (C.accent) root.setProperty("--accent", C.accent);
   if (C.text) root.setProperty("--text", C.text);
 
-  /* ---------- Определяем MAX ---------- */
+  /* ---------- Определяем Телеграм ---------- */
   var w = window;
-  var wa = w.WebApp || null;
+  var hasWebkitHandler = !!(w.webkit && w.webkit.messageHandlers && w.webkit.messageHandlers.performAction);
+  var IN_TG =
+    location.hash.indexOf("tgWebApp") !== -1 ||
+    location.search.indexOf("tgWebApp") !== -1 ||
+    !!w.TelegramWebviewProxy ||
+    hasWebkitHandler;
+  var tg = (w.Telegram && w.Telegram.WebApp) ? w.Telegram.WebApp : null;
 
-  /* В обычном браузере скрипт MAX тоже грузится, но поля пустые.
-     Считаем, что мы внутри MAX, только если заполнено хотя бы одно поле. */
-  function hasValue(v) {
-    if (v == null) return false;
-    if (typeof v === "string") return v.trim() !== "";
-    if (typeof v === "object") { for (var k in v) { return true; } return false; }
-    return true;
-  }
-  var IN_MAX = !!wa && (
-    hasValue(wa.initData) ||
-    hasValue(wa.platform) ||
-    hasValue(wa.version) ||
-    !!(wa.initDataUnsafe && hasValue(wa.initDataUnsafe.user))
-  );
-
-  function call(name) {
-    var args = Array.prototype.slice.call(arguments, 1);
+  /* Прямая отправка событий, если объекта Telegram.WebApp нет */
+  function postEvent(type, data) {
+    var payload = data ? JSON.stringify(data) : "";
     try {
-      if (wa && typeof wa[name] === "function") { wa[name].apply(wa, args); return true; }
+      if (w.TelegramWebviewProxy && typeof w.TelegramWebviewProxy.postEvent === "function") {
+        w.TelegramWebviewProxy.postEvent(type, payload);
+      } else if (w.webkit && w.webkit.messageHandlers && w.webkit.messageHandlers.performAction) {
+        w.webkit.messageHandlers.performAction.postMessage(JSON.stringify({ eventType: type, eventData: data || {} }));
+      } else if (w.parent && w.parent !== w) {
+        w.parent.postMessage(JSON.stringify({ eventType: type, eventData: data || {} }), "*");
+      }
     } catch (e) {}
-    return false;
   }
 
   /* ---------- Запуск ---------- */
-  if (IN_MAX) {
-    call("ready");
-    call("expand");
-    call("setHeaderColor", BG);
-    call("setBackgroundColor", BG);
+  if (IN_TG) {
+    if (tg) {
+      try { tg.ready(); } catch (e) {}
+      try { tg.expand(); } catch (e) {}
+      try { tg.setHeaderColor(BG); } catch (e) {}
+      try { tg.setBackgroundColor(BG); } catch (e) {}
+      try { if (tg.setBottomBarColor) tg.setBottomBarColor(BG); } catch (e) {}
+    } else {
+      postEvent("web_app_ready");
+      postEvent("web_app_expand");
+      postEvent("web_app_set_header_color", { color: BG });
+      postEvent("web_app_set_background_color", { color: BG });
+    }
   }
 
   /* ---------- Утилиты ---------- */
@@ -327,13 +332,13 @@ window.KK_DATA = {
     return n;
   }
   var ARROW = '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>';
-  var TARGET = IN_MAX ? "_self" : "_blank";
+  var TARGET = IN_TG ? "_self" : "_blank";
 
   function setLink(a, url) {
     a.setAttribute("href", url || "#");
     a.setAttribute("data-url", url || "");
     a.setAttribute("target", TARGET);
-    if (!IN_MAX) a.setAttribute("rel", "noopener");
+    if (!IN_TG) a.setAttribute("rel", "noopener");
   }
 
   /* ---------- Разметка из KK_DATA ---------- */
@@ -382,14 +387,26 @@ window.KK_DATA = {
 
   /* ---------- Открытие ссылок ---------- */
   function openUrl(url) {
-    var isMaxLink = url.indexOf("https://max.ru/") === 0;
+    var isTgLink = url.indexOf("https://t.me/") === 0;
 
-    if (isMaxLink) {
-      /* Сначала открываем ссылку MAX, сразу после — закрываем приложение */
-      if (!call("openMaxLink", url)) { w.location.href = url; return; }
-      call("close");
+    if (tg) {
+      if (isTgLink) {
+        /* Сначала закрываем, сразу после — открываем ссылку (важно для iPhone) */
+        try { tg.close(); } catch (e) {}
+        try { tg.openTelegramLink(url); } catch (e) {}
+      } else {
+        try { tg.openLink(url); } catch (e) { w.open(url, "_blank"); }
+      }
+      return;
+    }
+
+    /* Внутри Телеграма, но без объекта Telegram.WebApp — шлём события напрямую */
+    if (isTgLink) {
+      var path = url.replace(/^https:\/\/t\.me/, "") || "/";
+      postEvent("web_app_close");
+      postEvent("web_app_open_tg_link", { path_full: path });
     } else {
-      if (!call("openLink", url)) w.open(url, "_blank");
+      postEvent("web_app_open_link", { url: url });
     }
   }
 
@@ -398,7 +415,7 @@ window.KK_DATA = {
     if (!a) return;
     var url = a.getAttribute("data-url");
     if (!url) { e.preventDefault(); return; }
-    if (!IN_MAX) return; /* в обычном браузере ссылка открывается сама */
+    if (!IN_TG) return; /* в обычном браузере ссылка открывается сама */
     e.preventDefault();
     openUrl(url);
   });
